@@ -1,0 +1,17 @@
+{
+  "projectId": "your-project-id",
+  "functions": {
+    "create-session": {
+      "verifyJWT": false
+    },
+    "upload-media": {
+      "verifyJWT": false
+    },
+    "finalize-session": {
+      "verifyJWT": false
+    },
+    "get-event-stats": {
+      "verifyJWT": false
+    }
+  }
+}

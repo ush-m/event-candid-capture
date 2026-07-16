@@ -44,24 +44,37 @@ export async function uploadMedia(
   blob: Blob,
   capturedAt: string
 ) {
+  console.log(`[API] uploadMedia: session=${sessionId}, media=${mediaId}, type=${mediaType}, size=${blob.size}`);
+
   const formData = new FormData();
   formData.append('session_id', sessionId);
   formData.append('media_id', mediaId);
   formData.append('media_type', mediaType);
-  formData.append('file', blob);
+  formData.append('file', blob, `file.${mediaType === 'video' ? 'webm' : 'jpg'}`);
   formData.append('captured_at', capturedAt);
 
-  const response = await fetch(`${FUNCTIONS_BASE}/upload-media`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${supabaseAnonKey}`,
-    },
-    body: formData,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${FUNCTIONS_BASE}/upload-media`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+      },
+      body: formData,
+    });
+  } catch (fetchErr) {
+    console.error(`[API] uploadMedia fetch failed:`, fetchErr);
+    throw new Error(`Network error: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`);
+  }
+
+  console.log(`[API] uploadMedia response: ${response.status} ${response.statusText}`);
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Upload failed' }));
-    throw new Error(error.error || 'Upload failed');
+    const errorBody = await response.text().catch(() => 'unable to read body');
+    console.error(`[API] uploadMedia error body:`, errorBody);
+    let parsed: { error?: string } = {};
+    try { parsed = JSON.parse(errorBody); } catch {}
+    throw new Error(parsed.error || `Server error ${response.status}`);
   }
 
   return response.json();
@@ -113,4 +126,34 @@ export async function getEventStats(eventId: string) {
   }
 
   return response.json();
+}
+
+export interface RemoteMediaItem {
+  id: string;
+  media_type: string;
+  storage_path: string;
+  file_size: number;
+  sync_status: string;
+  captured_at: string;
+  created_at: string;
+  signed_url: string | null;
+}
+
+export async function fetchSessionMedia(sessionId: string): Promise<RemoteMediaItem[]> {
+  const response = await fetch(
+    `${FUNCTIONS_BASE}/get-session-media?session_id=${sessionId}`,
+    {
+      headers: {
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Failed to fetch media' }));
+    throw new Error(error.error || 'Failed to fetch media');
+  }
+
+  const data = await response.json();
+  return data.items || [];
 }

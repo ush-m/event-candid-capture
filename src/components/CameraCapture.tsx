@@ -1,19 +1,34 @@
 import { useCamera } from '../hooks/useCamera';
+import { ThumbnailStrip } from './ThumbnailStrip';
+import { LocalMediaItem } from '../types';
+import { ConfirmState } from '../hooks/useMediaStore';
 
 interface CameraCaptureProps {
   onCapturePhoto: (blob: Blob) => Promise<boolean>;
   onCaptureVideo: (blob: Blob) => Promise<boolean>;
-  onSyncRequest: () => void;
-  pendingCount: number;
+  onUploadSelected: () => void;
   isSyncing: boolean;
+  syncMessage: string | null;
+  items: LocalMediaItem[];
+  selectedIds: Set<string>;
+  selectedCount: number;
+  onToggleSelect: (id: string) => void;
+  confirmState: ConfirmState | null;
+  onResolveConfirm: (value: boolean) => void;
 }
 
 export function CameraCapture({
   onCapturePhoto,
   onCaptureVideo,
-  onSyncRequest,
-  pendingCount,
+  onUploadSelected,
   isSyncing,
+  syncMessage,
+  items,
+  selectedIds,
+  selectedCount,
+  onToggleSelect,
+  confirmState,
+  onResolveConfirm,
 }: CameraCaptureProps) {
   const {
     videoRef,
@@ -25,6 +40,7 @@ export function CameraCapture({
     stopRecording,
     isRecording,
     recordingDuration,
+    facingMode,
   } = useCamera();
 
   const handlePhoto = async () => {
@@ -47,16 +63,16 @@ export function CameraCapture({
 
   if (error) {
     return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6">
-        <div className="text-center space-y-4">
-          <svg className="w-16 h-16 mx-auto text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+      <div style={{ position: 'fixed', inset: 0, background: '#000', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 9999 }}>
+        <div style={{ textAlign: 'center' }}>
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="1.5" style={{ margin: '0 auto 16px' }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
           </svg>
-          <h2 className="text-xl font-semibold">Camera Access Required</h2>
-          <p className="text-gray-400 max-w-sm">{error}</p>
+          <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>Camera Access Required</h2>
+          <p style={{ color: '#999', maxWidth: 300, margin: '0 auto 16px' }}>{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-6 py-2 bg-white text-black rounded-lg font-medium"
+            style={{ padding: '10px 24px', background: '#fff', color: '#000', borderRadius: 8, fontWeight: 500, border: 'none', cursor: 'pointer' }}
           >
             Try Again
           </button>
@@ -66,85 +82,243 @@ export function CameraCapture({
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
-      <div className="flex-1 relative">
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          className="w-full h-full object-cover"
-        />
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#000', color: '#fff', zIndex: 9999, overflow: 'hidden' }}>
+      {/* Video feed */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          transform: facingMode === 'user' ? 'scaleX(-1)' : 'none',
+        }}
+      />
 
-        {!isInitialized && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center space-y-2">
-              <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-gray-400">Initializing camera...</p>
-            </div>
+      {/* Loading overlay */}
+      {!isInitialized && (
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', zIndex: 1 }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ width: 32, height: 32, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 8px' }} />
+            <p style={{ color: '#999' }}>Initializing camera...</p>
           </div>
-        )}
+        </div>
+      )}
 
-        {isRecording && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-red-600 px-3 py-1 rounded-full">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-            <span className="text-sm font-medium">{recordingDuration}s</span>
-          </div>
-        )}
-      </div>
+      {/* Recording indicator */}
+      {isRecording && (
+        <div style={{ position: 'absolute', top: 60, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 8, background: '#dc2626', padding: '4px 12px', borderRadius: 20, zIndex: 15 }}>
+          <div style={{ width: 8, height: 8, background: '#fff', borderRadius: '50%', animation: 'pulse 1s infinite' }} />
+          <span style={{ fontSize: 14, fontWeight: 500 }}>{recordingDuration}s</span>
+        </div>
+      )}
 
-      <div className="bg-black p-4 flex items-center justify-between">
-        <button
-          onClick={switchCamera}
-          className="p-3 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors"
-          disabled={isRecording}
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-        </button>
+      {/* Switch camera button - top right */}
+      <button
+        onClick={switchCamera}
+        disabled={isRecording}
+        style={{
+          position: 'absolute',
+          top: 16,
+          right: 16,
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          zIndex: 14,
+          width: 44,
+          height: 44,
+          borderRadius: '50%',
+          background: 'rgba(0,0,0,0.6)',
+          border: 'none',
+          color: '#fff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+        }}
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+      </button>
 
-        <div className="flex items-center gap-4">
+      {/* Sync status toast */}
+      {syncMessage && (
+        <div style={{
+          position: 'absolute',
+          top: 90,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(0,0,0,0.8)',
+          color: '#fff',
+          padding: '8px 20px',
+          borderRadius: 20,
+          fontSize: 14,
+          fontWeight: 500,
+          zIndex: 20,
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(255,255,255,0.1)',
+        }}>
+          {syncMessage}
+        </div>
+      )}
+
+      {/* Bottom controls */}
+      <div style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        paddingBottom: 'max(24px, env(safe-area-inset-bottom, 24px))',
+        paddingTop: 24,
+        background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
+        zIndex: 10,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
+          {/* Stacked thumbnail bundle */}
+          <ThumbnailStrip
+            items={items}
+            selectedIds={selectedIds}
+            onToggleSelect={onToggleSelect}
+            onUploadSelected={onUploadSelected}
+            isSyncing={isSyncing}
+            selectedCount={selectedCount}
+          />
+
+          {/* Upload selected button */}
           <button
-            onClick={handlePhoto}
-            className="w-16 h-16 rounded-full bg-white hover:bg-gray-200 transition-colors flex items-center justify-center"
-            disabled={!isInitialized || isRecording}
+            onClick={() => {
+              console.log('[CameraCapture] Upload selected clicked, count:', selectedCount, 'isSyncing:', isSyncing);
+              onUploadSelected();
+            }}
+            disabled={isSyncing || selectedCount === 0}
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              background: selectedCount > 0 && !isSyncing ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)',
+              border: 'none',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: isSyncing ? 'wait' : 'pointer',
+              position: 'relative',
+              opacity: isSyncing ? 0.6 : selectedCount === 0 ? 0.4 : 1,
+            }}
           >
-            <div className="w-14 h-14 rounded-full border-4 border-black" />
+            {isSyncing ? (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2" style={{ animation: 'spin 1s linear infinite' }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            ) : (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+            )}
+            {selectedCount > 0 && (
+              <span style={{ position: 'absolute', top: -4, right: -4, width: 20, height: 20, background: '#eab308', color: '#000', fontSize: 11, fontWeight: 700, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {selectedCount > 99 ? '99+' : selectedCount}
+              </span>
+            )}
           </button>
 
+          {/* PHOTO BUTTON */}
+          <button
+            onClick={handlePhoto}
+            disabled={!isInitialized || isRecording}
+            style={{
+              width: 76,
+              height: 76,
+              borderRadius: '50%',
+              background: '#fff',
+              border: '4px solid rgba(255,255,255,0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              boxShadow: '0 0 20px rgba(0,0,0,0.5)',
+              opacity: (!isInitialized || isRecording) ? 0.5 : 1,
+            }}
+          >
+            <div style={{ width: 60, height: 60, borderRadius: '50%', border: '4px solid #000' }} />
+          </button>
+
+          {/* VIDEO BUTTON */}
           <button
             onClick={handleVideoToggle}
-            className={`w-14 h-14 rounded-full transition-colors flex items-center justify-center ${
-              isRecording
-                ? 'bg-red-600 hover:bg-red-700'
-                : 'bg-gray-800 hover:bg-gray-700'
-            }`}
             disabled={!isInitialized}
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: '50%',
+              background: isRecording ? '#dc2626' : 'rgba(255,255,255,0.15)',
+              border: 'none',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              opacity: !isInitialized ? 0.5 : 1,
+            }}
           >
             {isRecording ? (
-              <div className="w-5 h-5 bg-white rounded-sm" />
+              <div style={{ width: 18, height: 18, background: '#fff', borderRadius: 3 }} />
             ) : (
-              <div className="w-10 h-10 rounded-full border-4 border-red-500" />
+              <div style={{ width: 36, height: 36, borderRadius: '50%', border: '4px solid #ef4444' }} />
             )}
           </button>
         </div>
-
-        <button
-          onClick={onSyncRequest}
-          className="p-3 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors relative"
-          disabled={isSyncing}
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-          </svg>
-          {pendingCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-500 text-black text-xs font-bold rounded-full flex items-center justify-center">
-              {pendingCount > 99 ? '99+' : pendingCount}
-            </span>
-          )}
-        </button>
       </div>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+      `}</style>
+
+      {/* Confirm modal */}
+      {confirmState && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 100, padding: 24,
+        }}>
+          <div style={{
+            background: '#1a1a1a', borderRadius: 16, padding: 24,
+            maxWidth: 320, width: '100%', textAlign: 'center',
+            border: '1px solid #333',
+          }}>
+            <p style={{ color: '#fff', fontSize: 16, fontWeight: 500, marginBottom: 20, lineHeight: 1.4 }}>
+              {confirmState.message}
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => onResolveConfirm(false)}
+                style={{
+                  flex: 1, padding: '12px 0', borderRadius: 10,
+                  background: 'rgba(255,255,255,0.1)', border: 'none',
+                  color: '#fff', fontSize: 15, fontWeight: 500, cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => onResolveConfirm(true)}
+                style={{
+                  flex: 1, padding: '12px 0', borderRadius: 10,
+                  background: '#eab308', border: 'none',
+                  color: '#000', fontSize: 15, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Yes, Upload
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -48,7 +48,7 @@ export function CreateEvent() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <header className="border-b border-gray-800 px-6 py-4">
+      <header className="border-b border-gray-800 px-4 sm:px-6 py-4">
         <div className="max-w-2xl mx-auto">
           <button
             onClick={() => navigate('/planner/dashboard')}
@@ -62,7 +62,7 @@ export function CreateEvent() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto p-6">
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
         <h1 className="text-2xl font-bold mb-6">Create Event</h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">

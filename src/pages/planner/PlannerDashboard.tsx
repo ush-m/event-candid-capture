@@ -69,7 +69,7 @@ export function PlannerDashboard() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <header className="border-b border-gray-800 px-6 py-4">
+      <header className="border-b border-gray-800 px-4 sm:px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <h1 className="text-xl font-bold">Event Candid Capture</h1>
           <button
@@ -81,10 +81,10 @@ export function PlannerDashboard() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
           <h2 className="text-2xl font-bold">Your Events</h2>
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             {!dropboxConnected && (
               <button
                 onClick={connectDropbox}
@@ -126,10 +126,10 @@ export function PlannerDashboard() {
                 onClick={() => navigate(`/planner/events/${event.id}`)}
                 className="bg-gray-900 border border-gray-800 rounded-lg p-4 cursor-pointer hover:border-gray-600 transition-colors"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-semibold text-lg">{event.name}</h3>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <h3 className="font-semibold text-lg truncate">{event.name}</h3>
                       <span
                         className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                           event.status === 'active'
@@ -148,7 +148,7 @@ export function PlannerDashboard() {
                     </p>
                   </div>
 
-                  <div className="flex gap-4 text-center ml-4">
+                  <div className="flex gap-4 text-center sm:ml-4">
                     <div>
                       <p className="text-xl font-bold">{event.session_count}</p>
                       <p className="text-xs text-gray-500">Guests</p>

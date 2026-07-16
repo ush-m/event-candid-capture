@@ -1,9 +1,38 @@
 const MAX_LONG_EDGE = 1920;
 const JPEG_QUALITY = 0.8;
 
+function loadImageFromSource(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Image load failed'));
+    img.src = src;
+  });
+}
+
+async function decodeBlob(blob: Blob): Promise<HTMLImageElement> {
+  try {
+    const bmp = await createImageBitmap(blob);
+    const canvas = document.createElement('canvas');
+    canvas.width = bmp.width;
+    canvas.height = bmp.height;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(bmp, 0, 0);
+    bmp.close();
+    return await loadImageFromSource(canvas.toDataURL('image/png'));
+  } catch {
+    const url = URL.createObjectURL(blob);
+    try {
+      return await loadImageFromSource(url);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+}
+
 export async function compressImage(blob: Blob): Promise<Blob> {
-  const img = await createImageBitmap(blob);
-  
+  const img = await decodeBlob(blob);
+
   let { width, height } = img;
   if (width > MAX_LONG_EDGE || height > MAX_LONG_EDGE) {
     if (width > height) {
@@ -34,8 +63,8 @@ export async function compressImage(blob: Blob): Promise<Blob> {
 }
 
 export async function generateThumbnail(blob: Blob, maxSize = 150): Promise<Blob> {
-  const img = await createImageBitmap(blob);
-  
+  const img = await decodeBlob(blob);
+
   let { width, height } = img;
   if (width > height) {
     height = Math.round((height / width) * maxSize);

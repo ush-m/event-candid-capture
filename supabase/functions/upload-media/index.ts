@@ -52,19 +52,19 @@ serve(async (req) => {
       .from("media-staging")
       .upload(storagePath, file, {
         contentType: media_type === "video" ? "video/webm" : "image/jpeg",
-        upsert: false,
+        upsert: true,
       });
 
     if (uploadError) {
-      console.error("Upload error:", uploadError);
+      console.error("Storage upload error:", JSON.stringify(uploadError));
       return new Response(
-        JSON.stringify({ error: "Upload failed" }),
+        JSON.stringify({ error: `Storage upload failed: ${uploadError.message || uploadError}` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Insert media item record
-    const { error: insertError } = await supabase.from("media_items").insert({
+    // Insert media item record (upsert in case of re-upload)
+    const { error: insertError } = await supabase.from("media_items").upsert({
       id: media_id,
       guest_session_id: session_id,
       media_type,
@@ -72,7 +72,7 @@ serve(async (req) => {
       file_size: file.size,
       sync_status: "staged",
       captured_at: captured_at,
-    });
+    }, { onConflict: "id" });
 
     if (insertError) {
       console.error("Insert error:", insertError);

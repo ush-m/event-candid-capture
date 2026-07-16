@@ -1,17 +1,38 @@
-{
-  "projectId": "your-project-id",
-  "functions": {
-    "create-session": {
-      "verifyJWT": false
-    },
-    "upload-media": {
-      "verifyJWT": false
-    },
-    "finalize-session": {
-      "verifyJWT": false
-    },
-    "get-event-stats": {
-      "verifyJWT": false
-    }
-  }
-}
+[project]
+id = "saufyitdnnsmhrgriqsb"
+
+[functions.create-session]
+verify_jwt = false
+
+[functions.upload-media]
+verify_jwt = false
+
+[functions.finalize-session]
+verify_jwt = false
+
+[functions.get-event-stats]
+verify_jwt = false
+
+[functions.get-review-session]
+verify_jwt = false
+
+[functions.get-event-guests]
+verify_jwt = false
+
+[functions.dropbox-oauth]
+verify_jwt = false
+
+[functions.dropbox-delivery]
+verify_jwt = false
+
+[functions.planner-signup]
+verify_jwt = false
+
+[functions.send-reminders]
+verify_jwt = false
+
+[functions.send-followup]
+verify_jwt = false
+
+[functions.cleanup-expired]
+verify_jwt = false
